@@ -16,10 +16,8 @@ namespace MarsForge.Launcher
     sealed class LoadingForm : Form
     {
         // look (sizes in 96-dpi pixels)
-        const int W = 360, H = 116, Shadow = 7, TitleH = 28, Edge = 2, Blocks = 20;
-        static readonly Color Key = Color.FromArgb(255, 0, 255);              // see-through colour around the card
+        const int W = 360, H = 116, TitleH = 28, Edge = 2, Blocks = 20;
         static readonly Color Ink = Color.FromArgb(14, 12, 11);
-        static readonly Color ShadowC = Color.FromArgb(10, 8, 8);
         static readonly Color Body = Color.FromArgb(28, 25, 24);
         static readonly Color Accent = Color.FromArgb(226, 115, 58);
         static readonly Color AccentHover = Color.FromArgb(240, 140, 90);
@@ -49,10 +47,9 @@ namespace MarsForge.Launcher
             FormBorderStyle = FormBorderStyle.None;
             StartPosition = FormStartPosition.Manual;
             AutoScaleMode = AutoScaleMode.None;
-            ClientSize = new Size(P(W + Shadow), P(H + Shadow));
+            ClientSize = new Size(P(W), P(H));
             CenterOnScreen();
-            BackColor = Key;
-            TransparencyKey = Key;
+            BackColor = Body;
             DoubleBuffered = true;
             ShowInTaskbar = true;
             _timer.Tick += (s, e) => Animate();
@@ -63,7 +60,7 @@ namespace MarsForge.Launcher
         Rectangle CloseBox => R(W - 26, 6, 17, 16);
         Rectangle MinBox => R(W - 48, 6, 17, 16);
 
-        /// <summary>Puts the card (not counting its shadow) in the middle of the screen the mouse is on.</summary>
+        /// <summary>Puts the window in the middle of the screen the mouse is on.</summary>
         void CenterOnScreen()
         {
             var area = Screen.FromPoint(Cursor.Position).WorkingArea;
@@ -166,7 +163,6 @@ namespace MarsForge.Launcher
             g.SmoothingMode = SmoothingMode.None;
             g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
 
-            using (var b = new SolidBrush(ShadowC)) g.FillRectangle(b, R(Shadow, Shadow, W, H));
             using (var b = new SolidBrush(Body)) g.FillRectangle(b, R(0, 0, W, H));
             using (var b = new SolidBrush(Accent)) g.FillRectangle(b, R(0, 0, W, TitleH));
             using (var ink = new SolidBrush(Ink))
