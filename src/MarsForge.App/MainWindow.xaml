@@ -1,0 +1,250 @@
+<Window x:Class="MarsForge.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:hx="http://helix-toolkit.org/wpf/SharpDX"
+        xmlns:app="clr-namespace:MarsForge.App"
+        UseLayoutRounding="True" TextOptions.TextFormattingMode="Display"
+        Title="MarsForge" Width="1440" Height="900" MinWidth="980" MinHeight="620"
+        WindowStartupLocation="CenterScreen" Background="{StaticResource Bg}"
+        Icon="pack://application:,,,/Assets/mars.ico">
+  <Window.Resources>
+    <ControlTemplate x:Key="SwatchButton" TargetType="Button">
+      <Border x:Name="B" Background="{TemplateBinding Background}" BorderBrush="#8A7B72" BorderThickness="1.5" CornerRadius="5"/>
+      <ControlTemplate.Triggers>
+        <Trigger Property="IsMouseOver" Value="True">
+          <Setter TargetName="B" Property="BorderBrush" Value="White"/>
+        </Trigger>
+      </ControlTemplate.Triggers>
+    </ControlTemplate>
+  </Window.Resources>
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="*"/>
+      <ColumnDefinition Width="0.8*" MinWidth="400"/>
+    </Grid.ColumnDefinitions>
+
+    <!-- map -->
+    <Border BorderBrush="{StaticResource Line}" BorderThickness="0,0,1,0">
+      <Grid>
+        <app:MapView x:Name="Map"/>
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Left" Margin="12">
+          <StackPanel>
+            <Button Content="+" Width="34" Height="34" Padding="0" FontSize="18" Style="{StaticResource SecondaryButton}"
+                    Background="#E61C1918" Click="ZoomIn_Click" ToolTip="Zoom in"/>
+            <Button Content="−" Width="34" Height="34" Padding="0" FontSize="18" Margin="0,4,0,0" Style="{StaticResource SecondaryButton}"
+                    Background="#E61C1918" Click="ZoomOut_Click" ToolTip="Zoom out"/>
+          </StackPanel>
+          <StackPanel Margin="10,0,0,0">
+            <Button x:Name="DrawButton" Content="Draw box" HorizontalAlignment="Left" Height="38"
+                    Style="{StaticResource AccentButton}" Click="Draw_Click" MouseEnter="Draw_MouseEnter" MouseLeave="Draw_MouseLeave"/>
+            <Border x:Name="HintBox" Visibility="Collapsed" Margin="0,6,0,0" HorizontalAlignment="Left" Padding="10,5"
+                    Background="#EB1C1918" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="6">
+              <TextBlock x:Name="HintText" FontSize="12" Text="Click Draw box, then drag on the map (up to 20 km)."/>
+            </Border>
+          </StackPanel>
+        </StackPanel>
+
+        <!-- search: a place name or latitude, longitude -->
+        <Grid HorizontalAlignment="Right" VerticalAlignment="Top" Margin="12" Width="330">
+          <!-- shadow on its own layer, so the text stays sharp -->
+          <Border CornerRadius="20" Background="#1C1918" Height="40" VerticalAlignment="Top">
+            <Border.Effect>
+              <DropShadowEffect BlurRadius="14" ShadowDepth="3" Opacity="0.55" Color="Black"/>
+            </Border.Effect>
+          </Border>
+          <Border x:Name="SearchFrame" Height="40" VerticalAlignment="Top" Background="#1C1918" BorderBrush="#4A3F3A" BorderThickness="1" CornerRadius="20">
+            <Grid Margin="14,0,8,0">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <Path Data="M 6.5,1 A 5.5,5.5 0 1 1 6.49,1 Z M 10.5,10.5 L 15,15" Stroke="{StaticResource Muted}" StrokeThickness="1.8"
+                    StrokeEndLineCap="Round" VerticalAlignment="Center" Width="16" Height="16"/>
+              <TextBlock x:Name="SearchHint" Grid.Column="1" Margin="10,0,0,0" VerticalAlignment="Center" FontSize="13"
+                         Foreground="#7D716A" IsHitTestVisible="False" Text="Search a place or lat, long (e.g. 18.4, 77.5)"/>
+              <TextBox x:Name="SearchBox" Grid.Column="1" Margin="6,0,0,0" VerticalAlignment="Center" FontSize="13"
+                       Background="Transparent" BorderThickness="0" Foreground="{StaticResource Text}" CaretBrush="White"
+                       TextChanged="Search_TextChanged" PreviewKeyDown="Search_KeyDown" GotKeyboardFocus="Search_Focus"
+                       LostKeyboardFocus="Search_LostFocus" PreviewMouseLeftButtonUp="Search_Click"/>
+              <Button x:Name="SearchClear" Grid.Column="2" Content="✕" Width="26" Height="26" Padding="0" FontSize="11" FontWeight="Normal"
+                      Style="{StaticResource SecondaryButton}" BorderBrush="Transparent" Visibility="Collapsed" Click="SearchClear_Click"
+                      ToolTip="Clear and remove the pin"/>
+            </Grid>
+          </Border>
+          <Popup x:Name="SearchPopup" PlacementTarget="{Binding ElementName=SearchFrame}" Placement="Bottom" VerticalOffset="6"
+                 StaysOpen="True" AllowsTransparency="True" PopupAnimation="Fade" Width="330">
+            <Border Background="{StaticResource Panel}" BorderBrush="#4A3F3A" BorderThickness="1" CornerRadius="10" Padding="6">
+              <StackPanel x:Name="SearchResults"/>
+            </Border>
+          </Popup>
+        </Grid>
+
+        <!-- map pictures still loading -->
+        <Border x:Name="MapLoading" Visibility="Collapsed" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="12"
+                Background="#EB1C1918" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="14" Padding="10,5">
+          <StackPanel Orientation="Horizontal">
+            <Grid Width="13" Height="13" Margin="0,0,8,0" VerticalAlignment="Center">
+              <Ellipse Stroke="#5A4B43" StrokeThickness="2"/>
+              <Path Stroke="{StaticResource Accent}" StrokeThickness="2" Data="M 6.5,1 A 5.5,5.5 0 0 1 12,6.5" RenderTransformOrigin="0.5,0.5">
+                <Path.RenderTransform>
+                  <RotateTransform/>
+                </Path.RenderTransform>
+                <Path.Triggers>
+                  <EventTrigger RoutedEvent="Loaded">
+                    <BeginStoryboard>
+                      <Storyboard>
+                        <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(RotateTransform.Angle)"
+                                         From="0" To="360" Duration="0:0:0.8" RepeatBehavior="Forever"/>
+                      </Storyboard>
+                    </BeginStoryboard>
+                  </EventTrigger>
+                </Path.Triggers>
+              </Path>
+            </Grid>
+            <TextBlock Text="Loading map…" FontSize="12" Foreground="{StaticResource Muted}" VerticalAlignment="Center"/>
+          </StackPanel>
+        </Border>
+      </Grid>
+    </Border>
+
+    <!-- side panel -->
+    <Grid Grid.Column="1">
+      <Grid.RowDefinitions>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="*"/>
+      </Grid.RowDefinitions>
+
+      <Border Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="0,0,0,1" Padding="18,16">
+        <StackPanel>
+          <TextBlock Text="MarsForge" FontSize="18" FontWeight="SemiBold"/>
+          <TextBlock x:Name="AreaText" Text="Draw a box on the map." Foreground="{StaticResource Muted}" Margin="0,2,0,0"/>
+
+          <Grid Margin="0,16,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="Auto"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+              <RowDefinition Height="Auto"/>
+              <RowDefinition Height="10"/>
+              <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <TextBlock Text="Surface detail" Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,14,0"/>
+            <ComboBox x:Name="DetailBox" Grid.Column="1" SelectedIndex="2" SelectionChanged="Setting_Changed">
+              <ComboBoxItem Content="Smooth"/>
+              <ComboBoxItem Content="Low"/>
+              <ComboBoxItem Content="Medium"/>
+              <ComboBoxItem Content="High"/>
+            </ComboBox>
+            <TextBlock Grid.Row="2" Text="Rock size" Foreground="{StaticResource Muted}" VerticalAlignment="Center" Margin="0,0,14,0"/>
+            <ComboBox x:Name="RockSizeBox" Grid.Row="2" Grid.Column="1" SelectedIndex="0" SelectionChanged="Setting_Changed">
+              <ComboBoxItem Content="All rocks"/>
+              <ComboBoxItem Content="Medium and big rocks"/>
+              <ComboBoxItem Content="Only big rocks"/>
+            </ComboBox>
+          </Grid>
+
+          <StackPanel Orientation="Horizontal" Margin="0,16,0,0">
+            <CheckBox x:Name="RocksCheck" Content="Rocks" IsChecked="True" Click="Tick_Click"/>
+            <CheckBox x:Name="SoilCheck" Content="Soft ground" IsChecked="True" Margin="26,0,0,0" Click="Tick_Click"/>
+          </StackPanel>
+
+          <Grid Margin="0,16,0,0">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="10"/>
+              <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Button x:Name="GenerateButton" Content="Generate" Style="{StaticResource AccentButton}" IsEnabled="False" Click="Generate_Click"/>
+            <Button x:Name="DownloadButton" Grid.Column="2" Content="Download .fbx" Style="{StaticResource SecondaryButton}"
+                    IsEnabled="False" Click="Download_Click"/>
+          </Grid>
+
+          <StackPanel Orientation="Horizontal" Margin="0,12,0,0" MinHeight="20">
+            <Grid x:Name="Spinner" Width="14" Height="14" Margin="0,0,9,0" Visibility="Collapsed" VerticalAlignment="Center">
+              <Ellipse Stroke="#5A4B43" StrokeThickness="2"/>
+              <Path Stroke="{StaticResource Accent}" StrokeThickness="2" Data="M 7,1 A 6,6 0 0 1 13,7" RenderTransformOrigin="0.5,0.5">
+                <Path.RenderTransform>
+                  <RotateTransform/>
+                </Path.RenderTransform>
+                <Path.Triggers>
+                  <EventTrigger RoutedEvent="Loaded">
+                    <BeginStoryboard>
+                      <Storyboard>
+                        <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(RotateTransform.Angle)"
+                                         From="0" To="360" Duration="0:0:0.8" RepeatBehavior="Forever"/>
+                      </Storyboard>
+                    </BeginStoryboard>
+                  </EventTrigger>
+                </Path.Triggers>
+              </Path>
+            </Grid>
+            <TextBlock x:Name="StatusText" Foreground="{StaticResource Muted}" FontSize="13" TextWrapping="Wrap" MaxWidth="520"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- 3D preview, with the soft ground colours floating at the bottom -->
+      <Grid x:Name="PreviewArea" Grid.Row="1" Background="#141110">
+        <hx:Viewport3DX x:Name="View" BackgroundColor="#141110" ShowCoordinateSystem="False" ShowViewCube="False" ShowCameraTarget="False"
+                        CameraRotationMode="Turntable" ModelUpDirection="0,1,0" MSAA="Two" EnableSwapChainRendering="False"
+                        ZoomExtentsWhenLoaded="False" Visibility="Hidden">
+          <hx:Viewport3DX.InputBindings>
+            <MouseBinding Command="hx:ViewportCommands.Rotate" Gesture="LeftClick"/>
+            <MouseBinding Command="hx:ViewportCommands.Pan" Gesture="RightClick"/>
+            <MouseBinding Command="hx:ViewportCommands.Zoom" Gesture="MiddleClick"/>
+          </hx:Viewport3DX.InputBindings>
+          <hx:Viewport3DX.Camera>
+            <hx:PerspectiveCamera x:Name="Camera" FieldOfView="45" NearPlaneDistance="1" FarPlaneDistance="100000"/>
+          </hx:Viewport3DX.Camera>
+          <hx:AmbientLight3D Color="#3C3430"/>
+          <hx:DirectionalLight3D x:Name="Sun" Color="#FFFFFF" Direction="1,-1,-0.5"/>
+          <hx:MeshGeometryModel3D x:Name="TerrainModel"/>
+          <hx:InstancingMeshGeometryModel3D x:Name="RocksModel"/>
+        </hx:Viewport3DX>
+        <TextBlock x:Name="EmptyText" Text="Your 3D terrain will appear here." Foreground="#6D625B"
+                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+        <Border HorizontalAlignment="Right" VerticalAlignment="Top" Margin="10" Background="#C81C1918" CornerRadius="4" Padding="8,3">
+          <TextBlock Text="Left-drag to turn · scroll to zoom · right-drag to move" FontSize="11" Foreground="#B3A79F"/>
+        </Border>
+
+        <Grid x:Name="ColorsPanel" Visibility="Collapsed" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,16">
+          <Border CornerRadius="10" Background="#1C1918">
+            <Border.Effect>
+              <DropShadowEffect BlurRadius="18" ShadowDepth="3" Opacity="0.55" Color="Black"/>
+            </Border.Effect>
+          </Border>
+          <Border Background="#1C1918" BorderBrush="#4A3F3A" BorderThickness="1" CornerRadius="10" Padding="16,9">
+          <StackPanel Orientation="Horizontal">
+            <TextBlock Text="Soft ground" FontSize="13" VerticalAlignment="Center"/>
+            <Button x:Name="SoftColorButton" Width="38" Height="24" Margin="8,0,20,0" Padding="0" Cursor="Hand"
+                    Click="SoftColor_Click" ToolTip="Change the soft ground colour" Template="{StaticResource SwatchButton}"/>
+            <TextBlock Text="Deep soft ground" FontSize="13" VerticalAlignment="Center"/>
+            <Button x:Name="DeepColorButton" Width="38" Height="24" Margin="8,0,20,0" Padding="0" Cursor="Hand"
+                    Click="DeepColor_Click" ToolTip="Change the deep soft ground colour" Template="{StaticResource SwatchButton}"/>
+            <Button Content="Reset" FontSize="12" Padding="10,3" FontWeight="Normal" Style="{StaticResource SecondaryButton}" Click="ResetColors_Click"/>
+          </StackPanel>
+        </Border>
+        </Grid>
+
+        <Popup x:Name="ColorPopup" StaysOpen="False" Placement="Top" VerticalOffset="-10" AllowsTransparency="True" PopupAnimation="Fade">
+          <Grid Margin="10">
+            <Border CornerRadius="10" Background="#1C1918">
+            <Border.Effect>
+              <DropShadowEffect BlurRadius="18" ShadowDepth="3" Opacity="0.55" Color="Black"/>
+            </Border.Effect>
+          </Border>
+            <Border Background="{StaticResource Panel}" BorderBrush="#6B5D55" BorderThickness="1" CornerRadius="10" Padding="12">
+              <StackPanel>
+                <TextBlock x:Name="ColorPopupTitle" FontSize="12" Foreground="{StaticResource Muted}" Margin="2,0,0,8"/>
+                <app:ColorPicker x:Name="Picker"/>
+              </StackPanel>
+            </Border>
+          </Grid>
+        </Popup>
+      </Grid>
+    </Grid>
+  </Grid>
+</Window>

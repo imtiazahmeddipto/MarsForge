@@ -1,0 +1,56 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>MarsForge</AssemblyName>
+    <RootNamespace>MarsForge.App</RootNamespace>
+    <ApplicationIcon>Assets\mars.ico</ApplicationIcon>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PlatformTarget>x64</PlatformTarget>
+    <SelfContained>true</SelfContained>
+    <Version>1.0.0</Version>
+    <Product>MarsForge</Product>
+    <NoWarn>$(NoWarn);NU1603;NU1701</NoWarn>
+  </PropertyGroup>
+  <!-- published as MarsForge.exe + a "lib" folder (the big parts: GDAL map tools, ONNX AI runtime, AI models).
+       build.bat then packs that folder into the launcher (src\MarsForge.Launcher), so people get one MarsForge.exe. -->
+  <PropertyGroup>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>false</IncludeNativeLibrariesForSelfExtract>
+    <IncludeAllContentForSelfExtract>false</IncludeAllContentForSelfExtract>
+    <EnableCompressionInSingleFile>false</EnableCompressionInSingleFile>
+    <DebugType>none</DebugType>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+  <!-- GDAL and ONNX Runtime native files go to lib\ (data files to lib\gdal-data\) instead of inside the exe -->
+  <Target Name="MarsForgeLibFolder" AfterTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <_MfNative Include="@(ResolvedFileToPublish)" Condition="'%(ResolvedFileToPublish.AssetType)' == 'native' And ('%(ResolvedFileToPublish.NuGetPackageId)' == 'MaxRev.Gdal.Core' Or '%(ResolvedFileToPublish.NuGetPackageId)' == 'MaxRev.Gdal.WindowsRuntime.Minimal' Or '%(ResolvedFileToPublish.NuGetPackageId)' == 'Microsoft.ML.OnnxRuntime')" />
+      <!-- the ONNX Runtime package adds its dlls in its own way, so also pick them (and any .pdb) by name -->
+      <_MfNative Include="@(ResolvedFileToPublish)" Exclude="@(_MfNative)" Condition="'%(ResolvedFileToPublish.Extension)' == '.dll' And $([System.String]::Copy('%(ResolvedFileToPublish.Filename)').StartsWith('onnxruntime'))" />
+      <_MfNative Include="@(ResolvedFileToPublish)" Exclude="@(_MfNative)" Condition="'%(ResolvedFileToPublish.Extension)' == '.pdb'" />
+      <ResolvedFileToPublish Remove="@(_MfNative)" />
+      <ResolvedFileToPublish Include="@(_MfNative)" Condition="'%(_MfNative.Extension)' == '.dll' Or '%(_MfNative.Extension)' == '.pdb'" RelativePath="lib\%(Filename)%(Extension)" ExcludeFromSingleFile="true" />
+      <ResolvedFileToPublish Include="@(_MfNative)" Condition="'%(_MfNative.Extension)' != '.dll' And '%(_MfNative.Extension)' != '.pdb'" RelativePath="lib\gdal-data\%(Filename)%(Extension)" ExcludeFromSingleFile="true" />
+    </ItemGroup>
+  </Target>
+  <ItemGroup>
+    <PackageReference Include="HelixToolkit.Wpf.SharpDX" Version="2.*" />
+    <PackageReference Include="MaxRev.Gdal.Core" Version="3.*" />
+    <PackageReference Include="MaxRev.Gdal.WindowsRuntime.Minimal" Version="3.*" />
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.*" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\MarsForge.Core\MarsForge.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Resource Include="Assets\mars.ico" />
+    <None Include="Assets\cacert.pem" Link="lib\cacert.pem" CopyToOutputDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+    <None Include="..\..\models\*.*" Link="lib\models\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
+  </ItemGroup>
+</Project>

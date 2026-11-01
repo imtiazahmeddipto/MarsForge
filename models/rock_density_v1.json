@@ -1,0 +1,69 @@
+{
+ "model": "ThermalRockModel v1",
+ "inputs": [
+  "ctx",
+  "ctx_local",
+  "themis",
+  "elev_local",
+  "slope_deg/10"
+ ],
+ "input_grid_m": 10.0,
+ "input_size": 200,
+ "output_cell_m": 50.0,
+ "output_size": 20,
+ "size_classes_m": [
+  1.0,
+  2.0,
+  4.0
+ ],
+ "average_rocks_per_square": [
+  0.6407943367958069,
+  0.23887380957603455,
+  7.102575182216242e-05
+ ],
+ "test_on_unseen_sites": {
+  "within_area_square_spearman": 0.0326269851686573,
+  "deviance_explained_vs_average": 0.01906863292573624,
+  "area_density_spearman": 0.2506286166988151,
+  "square_count_spearman": 0.17174300001099452,
+  "area_density_within_2x": 0.27225130890052357,
+  "areas": 191
+ },
+ "size_law": {
+  "power_b": 2.0590189861505284,
+  "minor_major_quantiles": [
+   0.44844100128131476,
+   0.5668170177924371,
+   0.7002710027100272,
+   0.8273809523809523,
+   0.918793286013203
+  ],
+  "rocks_measured": 69163,
+  "max_diameter_m": 4.451
+ },
+ "areas": 191,
+ "sites": 96,
+ "labels": "RockBoxNet v1 detections on HiRISE (automatic, not hand-checked)",
+ "created": "2026-11-01 13:56",
+ "weights": {
+  "c": [
+   -0.6767465472221375,
+   -1.540785312652588,
+   -9.54948616027832
+  ],
+  "w": [
+   [
+    2.425642251968384,
+    1.785667896270752
+   ],
+   [
+    1.158455491065979,
+    0.3680201768875122
+   ],
+   [
+    -0.06762154400348663,
+    0.021001122891902924
+   ]
+  ]
+ }
+}

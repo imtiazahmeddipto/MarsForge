@@ -1,0 +1,9 @@
+bin/
+obj/
+dist/
+build/
+build.log
+.vs/
+*.user
+training/data/
+__pycache__/
