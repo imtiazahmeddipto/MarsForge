@@ -28,7 +28,8 @@ Run `dist\MarsForge.exe`, then:
    **TerrainData `<name>_Terrain.asset`** (16-bit heightmap, one piece, 2^n+1 size up to 1025) and its
    **`<name>_Layer.terrainlayer`** (the same texture as the FBX, soft ground painted in, stored inside it as DXT1
    with mipmaps), plus their `.meta` files. Copy all four into a Unity 6 project's `Assets` folder and drag the
-   `.asset` into the scene. No scripts or packages. Rocks are FBX-only.
+   `.asset` into the scene. No scripts or packages. With **Rocks** ticked the zip also has `<name>_Rocks.fbx`:
+   the rocks in place for the terrain at (0, 0, 0), every rock a separate object (pivot at its base).
    +X = east, +Y = up, +Z = north, 1 unit = 1 m, south-west corner at the terrain origin.
 
 An internet connection is needed (heights, Mars Trek images and HiRISE photos are read online). To work offline,

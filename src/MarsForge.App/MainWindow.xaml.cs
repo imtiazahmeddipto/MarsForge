@@ -507,7 +507,7 @@ public partial class MainWindow : Window
                 {
                     var g = r.GroundTexture;
                     var rgba = Textures.Compose(g, soil ? r.RiskTexture : null, soft, deep);   // same texture as the FBX
-                    UnityExport.SaveZip(path, r, rgba, g.Width, g.Height);
+                    UnityExport.SaveZip(path, r, rgba, g.Width, g.Height, rocks ? r.Rocks : null);
                 });
                 Status($"Saved {Path.GetFileName(path)}. Put its files (with the .meta files) anywhere in your Unity 6 project's Assets folder.");
             }

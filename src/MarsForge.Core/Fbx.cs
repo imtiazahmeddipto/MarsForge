@@ -15,6 +15,10 @@ public sealed class FbxMesh
     public string? TextureName { get; init; }
     public (double R, double G, double B) Color { get; init; } = (1, 1, 1);
     public Dictionary<string, object>? Properties { get; init; }
+    /// <summary>Shared material: meshes (without a texture) with the same name use one material. Default: own material.</summary>
+    public string? MaterialName { get; init; }
+    /// <summary>Where the object sits (east, up, north in metres); positions are relative to it. Default: the origin.</summary>
+    public (double X, double Y, double Z) Translation { get; init; }
 }
 
 /// <summary>Binary FBX 7.4 writer for Blender: Y-up, 1 unit = 1 metre. Positions are written as
@@ -110,7 +114,9 @@ public static class Fbx
         root.Add(new Node("References"));
 
         int nTex = meshes.Count(m => m.TexturePng is not null);
-        var counts = new List<(string, int)> { ("GlobalSettings", 1), ("Geometry", meshes.Count), ("Model", meshes.Count), ("Material", meshes.Count) };
+        int nMat = meshes.Count(m => m.MaterialName is null || m.TexturePng is not null)
+                   + meshes.Where(m => m.MaterialName is not null && m.TexturePng is null).Select(m => m.MaterialName).Distinct().Count();
+        var counts = new List<(string, int)> { ("GlobalSettings", 1), ("Geometry", meshes.Count), ("Model", meshes.Count), ("Material", nMat) };
         if (nTex > 0) { counts.Add(("Texture", nTex)); counts.Add(("Video", nTex)); }
         var defs = new Node("Definitions"); root.Add(defs);
         defs.Add("Version", 100);
@@ -119,7 +125,8 @@ public static class Fbx
 
         var objs = new Node("Objects"); root.Add(objs);
         var con = new Node("Connections");
-        for (int k = 0; k < meshes.Count; k++) MeshObjects(objs, con, meshes[k], 1000000 + 10 * k);
+        var shared = new Dictionary<string, long>();
+        for (int k = 0; k < meshes.Count; k++) MeshObjects(objs, con, meshes[k], 1000000 + 10L * k, shared);
         root.Add(con);
         var takes = new Node("Takes");
         takes.Add("Current", "");
@@ -142,7 +149,7 @@ public static class Fbx
         return output.ToArray();
     }
 
-    static void MeshObjects(Node objs, Node con, FbxMesh mesh, long baseId)
+    static void MeshObjects(Node objs, Node con, FbxMesh mesh, long baseId, Dictionary<string, long> shared)
     {
         string name = mesh.Name;
         int nv = mesh.Positions.Length / 3;
@@ -200,7 +207,7 @@ public static class Fbx
         var m = objs.Add("Model", new L(model), name + Sep + "Model", "Mesh");
         m.Add("Version", 232);
         var mp = m.Add("Properties70");
-        mp.P("Lcl Translation", "Lcl Translation", "", "A", 0.0, 0.0, 0.0);
+        mp.P("Lcl Translation", "Lcl Translation", "", "A", mesh.Translation.X, mesh.Translation.Y, -mesh.Translation.Z);
         mp.P("Lcl Rotation", "Lcl Rotation", "", "A", 0.0, 0.0, 0.0);
         mp.P("Lcl Scaling", "Lcl Scaling", "", "A", 1.0, 1.0, 1.0);
         mp.P("DefaultAttributeIndex", "int", "Integer", "", 0);
@@ -215,8 +222,20 @@ public static class Fbx
         m.Add("Shading", true);
         m.Add("Culling", "CullingOff");
 
+        bool share = mesh.MaterialName is not null && mesh.TexturePng is null;
+        bool made = share && shared.ContainsKey(mesh.MaterialName!);
+        if (share)
+        {
+            if (made) mat = shared[mesh.MaterialName!];
+            else shared[mesh.MaterialName!] = mat;
+        }
+        con.Add("C", "OO", new L(model), new L(0));
+        con.Add("C", "OO", new L(geom), new L(model));
+        con.Add("C", "OO", new L(mat), new L(model));
+        if (made) return;                                             // the shared material already exists
+
         var color = mesh.TexturePng is null ? mesh.Color : (1.0, 1.0, 1.0);
-        var mt = objs.Add("Material", new L(mat), name + "Material" + Sep + "Material", "");
+        var mt = objs.Add("Material", new L(mat), (mesh.MaterialName ?? name + "Material") + Sep + "Material", "");
         mt.Add("Version", 102);
         mt.Add("ShadingModel", "Phong");
         mt.Add("MultiLayer", 0);
@@ -228,10 +247,6 @@ public static class Fbx
         mtp.P("Shininess", "Number", "", "A", 2.0);
         mtp.P("ShininessExponent", "Number", "", "A", 2.0);
         mtp.P("ReflectionFactor", "Number", "", "A", 0.0);
-
-        con.Add("C", "OO", new L(model), new L(0));
-        con.Add("C", "OO", new L(geom), new L(model));
-        con.Add("C", "OO", new L(mat), new L(model));
         if (mesh.TexturePng is not null)
         {
             string tn = mesh.TextureName ?? name + "_texture.png";

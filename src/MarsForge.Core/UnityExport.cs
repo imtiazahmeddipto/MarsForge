@@ -8,7 +8,8 @@ namespace MarsForge.Core;
 
 /// <summary>The Unity 6+ download: a zip with a ready Unity TerrainData (&lt;name&gt;_Terrain.asset) and its terrain layer
 /// (&lt;name&gt;_Layer.terrainlayer, with the colour texture inside it), each with its .meta file (the ids that let
-/// the terrain find its layer). Written directly as Unity text assets, the same format Unity 6 itself saves.
+/// the terrain find its layer), written directly as Unity text assets, the same format Unity 6 itself saves;
+/// and, when there are rocks, &lt;name&gt;_Rocks.fbx: the rocks in place, every rock a separate object.
 /// Unity axes: +X east, +Y up, +Z north, 1 unit = 1 m; the terrain's south-west corner is its origin.</summary>
 public static class UnityExport
 {
@@ -47,7 +48,7 @@ public static class UnityExport
     }
 
     /// <summary>Saves the zip. rgba = the colour texture (north row first), the same one the FBX gets.</summary>
-    public static void SaveZip(string zipPath, TerrainResult result, byte[] rgba, int texW, int texH)
+    public static void SaveZip(string zipPath, TerrainResult result, byte[] rgba, int texW, int texH, RockSet? rocks)
     {
         var m = result.Mesh;
         string name = SafeName(Path.GetFileNameWithoutExtension(zipPath));
@@ -62,20 +63,23 @@ public static class UnityExport
         string terrainYaml = TerrainYaml(name, h16, res, sizeX, sizeZ, maxH, layerGuid);
         string layerYaml = LayerYaml(name, rgba, texW, texH, sizeX, sizeZ);
 
-        var files = new (string path, string text)[]
+        var utf8 = new UTF8Encoding(false);
+        var files = new List<(string path, byte[] data)>
         {
-            ($"{name}_Terrain.asset", terrainYaml),
-            ($"{name}_Terrain.asset.meta", Meta(terrainGuid, TerrainId)),
-            ($"{name}_Layer.terrainlayer", layerYaml),
-            ($"{name}_Layer.terrainlayer.meta", Meta(layerGuid, LayerId)),
+            ($"{name}_Terrain.asset", utf8.GetBytes(terrainYaml)),
+            ($"{name}_Terrain.asset.meta", utf8.GetBytes(Meta(terrainGuid, TerrainId))),
+            ($"{name}_Layer.terrainlayer", utf8.GetBytes(layerYaml)),
+            ($"{name}_Layer.terrainlayer.meta", utf8.GetBytes(Meta(layerGuid, LayerId))),
         };
+        if (rocks is { Count: > 0 } && RocksFbx(rocks, m.Box, sizeX, sizeZ, hm, res) is { } fbx)
+            files.Add(($"{name}_Rocks.fbx", fbx));
         string tmp = zipPath + ".part";
         using (var fs = File.Create(tmp))
         using (var zip = new ZipArchive(fs, ZipArchiveMode.Create))
-            foreach (var (path, text) in files)
+            foreach (var (path, data) in files)
             {
                 using var e = zip.CreateEntry(path, CompressionLevel.Optimal).Open();
-                e.Write(new UTF8Encoding(false).GetBytes(text));
+                e.Write(data);
             }
         File.Move(tmp, zipPath, overwrite: true);
     }
@@ -292,6 +296,46 @@ public static class UnityExport
     {
         int r = (v >> 11) & 31, g = (v >> 5) & 63, b = v & 31;
         c[0] = (r << 3) | (r >> 2); c[1] = (g << 2) | (g >> 4); c[2] = (b << 3) | (b >> 2);
+    }
+
+    // ------------------------------------------------------------------ rocks
+
+    /// <summary>The rocks as one FBX, every rock its own object (pivot on the ground at the rock's centre), so each
+    /// can be culled, moved or deleted on its own. Placed for the terrain at (0, 0, 0): its south-west corner at the
+    /// origin, rocks sitting on the same heights as the terrain. All rocks share one material, "Rock".</summary>
+    static byte[]? RocksFbx(RockSet rocks, GeoBox box, double sizeX, double sizeZ, float[] hm, int res)
+    {
+        var ids = Enumerable.Range(0, rocks.Count).Where(k => box.Contains(rocks.Lon[k], rocks.Lat[k])).ToArray();
+        if (ids.Length == 0) return null;
+        float[] Pick(float[] a) => ids.Select(k => a[k]).ToArray();
+        var zero = new float[ids.Length];
+        // every rock built at the origin; its place goes into the object's position
+        var (pos, nrm, tri) = RockMesh.Build(zero, zero, zero, Pick(rocks.Major), Pick(rocks.Minor), Pick(rocks.Height), Pick(rocks.Yaw), box.Seed);
+        var meshes = new List<FbxMesh>(ids.Length);
+        string fmt = new('0', ids.Length.ToString().Length);
+        for (int j = 0; j < ids.Length; j++)
+        {
+            int k = ids[j];
+            double u = (rocks.Lon[k] - box.West) / (box.East - box.West), v = (rocks.Lat[k] - box.South) / (box.North - box.South);
+            double ground = Interp.Linear(hm, res, res, v * (res - 1), u * (res - 1));   // the terrain's own height there
+            var p = new float[36];
+            var n = new float[36];
+            // Unity reads an FBX with its x axis mirrored; turning everything half a turn first makes the rocks land
+            // at +X east, +Z north in Unity (a turn, not a mirror, so the faces keep pointing outwards)
+            for (int i = 0; i < 36; i += 3)
+            {
+                p[i] = -pos[36 * j + i]; p[i + 1] = pos[36 * j + i + 1]; p[i + 2] = -pos[36 * j + i + 2];
+                n[i] = -nrm[36 * j + i]; n[i + 1] = nrm[36 * j + i + 1]; n[i + 2] = -nrm[36 * j + i + 2];
+            }
+            var t = new int[60];
+            for (int i = 0; i < 60; i++) t[i] = tri[60 * j + i] - 12 * j;
+            meshes.Add(new FbxMesh
+            {
+                Name = "Rock_" + (j + 1).ToString(fmt), Positions = p, Normals = n, Triangles = t,
+                Translation = (-u * sizeX, ground, -v * sizeZ), Color = BlenderExport.RockColor, MaterialName = "Rock",
+            });
+        }
+        return Fbx.Build(meshes);
     }
 
     // ------------------------------------------------------------------ helpers
