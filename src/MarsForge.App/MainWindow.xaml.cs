@@ -475,29 +475,54 @@ public partial class MainWindow : Window
     }
 
     // ------------------------------------------------------------------ download
+    bool UnityFormat => FormatBox?.SelectedIndex == 1;
+
+    void Format_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (DownloadButton is null) return;
+        DownloadButton.Content = UnityFormat ? "Download for Unity 6+" : "Download .fbx";
+    }
+
     async void Download_Click(object sender, RoutedEventArgs e)
     {
         if (_result is not { } r || _busy) return;
+        bool unity = UnityFormat;
         var dlg = new Microsoft.Win32.SaveFileDialog
         {
             FileName = BlenderExport.BaseName(r.Mesh) + ".zip",
-            Filter = "Zip file with the .fbx and its texture (*.zip)|*.zip",
-            Title = "Save the terrain (.fbx + texture, zipped)",
+            Filter = unity ? "Zip file with the Unity 6+ terrain (*.zip)|*.zip" : "Zip file with the .fbx and its texture (*.zip)|*.zip",
+            Title = unity ? "Save the Unity 6+ terrain (.asset + terrain layer, zipped)" : "Save the terrain (.fbx + texture, zipped)",
         };
         if (dlg.ShowDialog(this) != true) return;
         SetBusy(true);
         try
         {
             bool soil = SoilCheck.IsChecked == true, rocks = RocksCheck.IsChecked == true;
-            Status("Making the texture…", busy: true);
-            var png = await Task.Run(() => TexturePng(r, soil));
-            Status("Creating the .fbx file…", busy: true);
             string path = dlg.FileName;
-            await Task.Run(() => BlenderExport.SaveZip(path, r, png, rocks));
-            Status($"Saved {Path.GetFileName(path)}. Unzip it, then in Blender: File › Import › FBX.");
+            if (unity)
+            {
+                Status("Creating the Unity terrain…", busy: true);
+                var (soft, deep) = (_soft, _deep);
+                await Task.Run(() =>
+                {
+                    var g = r.GroundTexture;
+                    var rgba = Textures.Compose(g, soil ? r.RiskTexture : null, soft, deep);   // same texture as the FBX
+                    UnityExport.SaveZip(path, r, rgba, g.Width, g.Height);
+                });
+                Status($"Saved {Path.GetFileName(path)}. Put its files (with the .meta files) anywhere in your Unity 6 project's Assets folder.");
+            }
+            else
+            {
+                Status("Making the texture…", busy: true);
+                var png = await Task.Run(() => TexturePng(r, soil));
+                Status("Creating the .fbx file…", busy: true);
+                await Task.Run(() => BlenderExport.SaveZip(path, r, png, rocks));
+                Status($"Saved {Path.GetFileName(path)}. Unzip it, then in Blender: File › Import › FBX.");
+            }
         }
         catch (Exception ex)
         {
+            Log.Error(unity ? "Unity export" : "FBX export", ex);
             Status("Saving failed: " + ex.Message, error: true);
         }
         finally

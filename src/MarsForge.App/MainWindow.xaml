@@ -152,13 +152,24 @@
 
           <Grid Margin="0,16,0,0">
             <Grid.ColumnDefinitions>
-              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="0.8*"/>
               <ColumnDefinition Width="10"/>
-              <ColumnDefinition Width="*"/>
+              <ColumnDefinition Width="1.2*"/>
             </Grid.ColumnDefinitions>
             <Button x:Name="GenerateButton" Content="Generate" Style="{StaticResource AccentButton}" IsEnabled="False" Click="Generate_Click"/>
-            <Button x:Name="DownloadButton" Grid.Column="2" Content="Download .fbx" Style="{StaticResource SecondaryButton}"
-                    IsEnabled="False" Click="Download_Click"/>
+            <Grid Grid.Column="2">
+              <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+              </Grid.ColumnDefinitions>
+              <Button x:Name="DownloadButton" Content="Download .fbx" Style="{StaticResource SplitMainButton}" Padding="8,9"
+                      IsEnabled="False" Click="Download_Click"/>
+              <ComboBox x:Name="FormatBox" Grid.Column="1" Style="{StaticResource SplitArrowCombo}" SelectedIndex="0"
+                        SelectionChanged="Format_Changed" ToolTip="Choose the download format">
+                <ComboBoxItem Content="FBX (Blender)"/>
+                <ComboBoxItem Content="Unity 6+ Terrain (.asset)"/>
+              </ComboBox>
+            </Grid>
           </Grid>
 
           <StackPanel Orientation="Horizontal" Margin="0,12,0,0" MinHeight="20">

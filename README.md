@@ -24,6 +24,13 @@ Run `dist\MarsForge.exe`, then:
 4. **Download .fbx** saves a zip with the `.fbx` (terrain with its texture inside, and the rocks) and the texture
    as a `.png`. In Blender: File › Import › FBX. 1 unit = 1 m, +X = east, +Y = north, +Z = up.
 
+5. The arrow next to **Download** switches the format to **Unity 6+ Terrain**. That zip holds a ready
+   **TerrainData `<name>_Terrain.asset`** (16-bit heightmap, one piece, 2^n+1 size up to 1025) and its
+   **`<name>_Layer.terrainlayer`** (the same texture as the FBX, soft ground painted in, stored inside it as DXT1
+   with mipmaps), plus their `.meta` files. Copy all four into a Unity 6 project's `Assets` folder and drag the
+   `.asset` into the scene. No scripts or packages. Rocks are FBX-only.
+   +X = east, +Y = up, +Z = north, 1 unit = 1 m, south-west corner at the terrain origin.
+
 An internet connection is needed (heights, Mars Trek images and HiRISE photos are read online). To work offline,
 put `Mars_HRSC_MOLA_BlendDEM_Global_200mp_v2.tif` (11 GB, from https://planetarymaps.usgs.gov/mosaic/Mars/HRSC_MOLA_Blend/)
 in a `data` folder next to `MarsForge.exe`. The log (`MarsForge.log`) is in `%LOCALAPPDATA%\MarsForge\app-…\lib`.
@@ -50,7 +57,7 @@ It publishes the app (`src\MarsForge.App`), builds the small launcher with the l
 
 | Folder | What |
 |---|---|
-| `src/MarsForge.Core` | Everything that is not the window: terrain mesh, rock finder (RockBoxNet), rock model, soft ground, textures, FBX writer. Plain .NET, no packages. |
+| `src/MarsForge.Core` | Everything that is not the window: terrain mesh, rock finder (RockBoxNet), rock model, soft ground, textures, FBX writer, Unity 6 terrain writer (TerrainData + TerrainLayer as Unity text assets). Plain .NET, no packages. |
 | `src/MarsForge.App` | The Windows app (WPF): map, buttons, 3D preview (Helix Toolkit), GDAL for map data, ONNX Runtime for the AI models. |
 | `src/MarsForge.Launcher` | The small `MarsForge.exe` people run: the loading window; unpacks the app packed inside it, then starts it. |
 | `models` | `rockboxnet_v1.onnx` (finds rocks in HiRISE photos) and `rock_density_v1.*` (the rock model). |
