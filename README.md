@@ -48,6 +48,41 @@ in a `data` folder next to `MarsForge.exe`. The log (`MarsForge.log`) is in `%LO
 * **Soft ground**: places likely to have loose, fine soil (like the soil that trapped the Spirit rover).
   An estimate from orbit pictures, not a measurement.
 
+## NASA and partner data used
+
+MarsForge reads five planetary data products from NASA missions and their partners. Only the parts inside your
+box are downloaded (GDAL reads the big files over the web piece by piece).
+
+| Data | Mission / instrument | Resolution | Read from | What MarsForge does with it |
+|---|---|---|---|---|
+| Viking MDIM 2.1 colour mosaic | NASA Viking Orbiters | 232 m/pixel | NASA Mars Trek tiles | The map you draw the box on. |
+| MOLA–HRSC Blended DEM v2 | NASA Mars Global Surveyor (MOLA) + ESA Mars Express (HRSC) | 200 m/pixel | USGS Astrogeology (`planetarymaps.usgs.gov`) | The real heights of the terrain. Smooth curves fill the gaps between the 200 m samples. |
+| THEMIS night-time infrared mosaic v14 | NASA Mars Odyssey (THEMIS) | 100 m/pixel | NASA Mars Trek tiles | Ground that stays warm at night is usually rocky, and cold ground is usually loose soil. Used by the rock model and the soft-ground map. |
+| CTX mosaic | NASA Mars Reconnaissance Orbiter (CTX) | 5 m/pixel source, read at about 10 m | Esri OnMars CTX tiles | Brightness and how rough the image looks (local contrast). Used by the rock model and the soft-ground map. |
+| HiRISE orthoimages (from the HiRISE terrain-model sites) | NASA Mars Reconnaissance Orbiter (HiRISE), University of Arizona, USGS | up to 25 cm/pixel | USGS Astrogeology STAC catalogue (`mro_hirise_socet_dtms`) | RockBoxNet finds the real rocks in the photo. These real rocks were also the lessons the rock model was trained on. |
+
+How the pieces work together:
+
+* **Heights:** the MOLA–HRSC DEM gives one real height every 200 m. *Surface detail* only adds small generated
+  craters and bumps on top; it never changes the measured shape.
+* **Real rocks (boxes up to about 2 km):** if a HiRISE photo covers the box, RockBoxNet (`models/rockboxnet_v1.onnx`)
+  finds each rock in it and places it at its real position and size.
+* **Predicted rocks (everywhere else):** the rock model (`models/rock_density_v1.onnx`) looks at a 2 km x 2 km
+  window on a 10 m grid: CTX brightness, CTX local contrast, THEMIS night infrared, height and slope. It predicts
+  how many rocks of each size there should be. The amounts follow the data, but each rock's exact spot is random.
+* **Rock model training:** `training/` downloads HiRISE areas and the same Mars Trek layers, finds the real rocks
+  with RockBoxNet, and teaches the model to guess them from the orbit layers alone. It is tested on HiRISE sites it
+  never saw.
+* **Soft ground:** a rule of thumb from orbit, not a measurement: cold at night in THEMIS, a smooth CTX image,
+  few rocks and low ground.
+
+Data access: [NASA Mars Trek](https://trek.nasa.gov/mars/),
+[USGS Astrogeology](https://astrogeology.usgs.gov/) (MOLA–HRSC DEM and the HiRISE STAC catalogue),
+Esri OnMars (CTX tiles) and the [University of Arizona HiRISE archive](https://www.uahirise.org/).
+
+**Important:** HiRISE only covers some places. Where there is no HiRISE photo, the rocks are predicted, not real
+individual rocks.
+
 ## Build it
 
 Needs the [.NET 10 SDK](https://dotnet.microsoft.com/download). Double-click `build.bat`
@@ -64,4 +99,6 @@ It publishes the app (`src\MarsForge.App`), builds the small launcher with the l
 | `models` | `rockboxnet_v1.onnx` (finds rocks in HiRISE photos) and `rock_density_v1.*` (the rock model). |
 | `training` | Python scripts that made the rock model (see `training/README.md`). Not needed to run the app. |
 
-Credits: maps NASA Mars Trek; heights USGS Astrogeology; HiRISE photos University of Arizona / NASA.
+Credits: maps NASA Mars Trek (Viking, THEMIS); heights USGS Astrogeology (NASA MOLA + ESA HRSC); CTX tiles Esri OnMars (NASA MRO); HiRISE photos University of Arizona / NASA / USGS.
+
+MarsForge is not made, endorsed or supported by NASA, ESA, USGS or Esri. It only uses their public data.
